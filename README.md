@@ -1,3 +1,6 @@
+[![Build status](https://api.travis-ci.org/btlines/fluent.svg?branch=master)](https://travis-ci.org/btlines/fluent)
+[![codecov](https://codecov.io/gh/btlines/fluent/branch/master/graph/badge.svg)](https://codecov.io/gh/btlines/fluent)
+
 # Fluent
 The seamless translation layer
 
