@@ -80,7 +80,7 @@ val internalCircle = externalCircle.transformTo[Internal.Circle]
 ```
 
 In this case it's easy to figure out what Fluent does:
-`External.Circle` contains a `x` and a `y` of type `Double` so Fluent can create a `Point` from an `External.Circle`. The `radius` can be taken as it is and `colour` needs to be turned into the correct type (Note that if the colour doesn't exist in the expected values it would fail at runtime).
+`External.Circle` contains a `x` and a `y` of type `Double` so Fluent can create a `Point` from an `External.Circle`. The `radius` can be taken as it is and `color` needs to be turned into the correct type (Note that if the colour doesn't exist in the expected values it would fail at runtime).
 
 ### Using user defined functions
 
@@ -110,7 +110,7 @@ val externalPost = External.Post(
 )
 ```
 
-In this case it's not possible to transform the `External.Post` into an `Internal.Post` because Fluent can't figure out how the extract the tags from the post and how to convert the `timestamp` of type `Long` into a `timestamp` of type `Instant`.
+In this case it's not possible to transform the `External.Post` into an `Internal.Post` because Fluent can't figure out how to extract the tags from the post and how to convert the `timestamp` of type `Long` into a `timestamp` of type `Instant`.
 
 We can define 2 implicit functions to perform these transformations:
 
