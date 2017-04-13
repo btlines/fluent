@@ -18,6 +18,7 @@ object Internal {
     case object Yellow extends Color
   }
   case class Circle(center: Point, radius: Double, color: Option[Color])
+  case class Cylinder(origin: Point, radius: Double, height: Double, color: Color)
 
   case class Author(name: String)
   case class Post(author: Author, body: String, tags: List[String], timestamp: Instant)
@@ -58,6 +59,10 @@ class FluentSpec extends WordSpecLike with Matchers {
       timestamp = Instant.ofEpochMilli(1491823712002L),
       tags = List("#Fluent", "#DDD", "#translationLayer")
     )
+    "translate External.Post to Internal.Post without extracting tags" in {
+      implicit def toInstant(timestamp: Long): Instant = Instant.ofEpochMilli(timestamp)
+      externalPost.transformTo[Internal.Post] shouldBe internalPost.copy(tags = List.empty)
+    }
     "translate External.Post to Internal.Post using user defined functions" in {
       implicit def tagsExtractor(post: External.Post): List[String] =
         post.body.split("\\s").toList.filter(_.startsWith("#"))
@@ -67,6 +72,15 @@ class FluentSpec extends WordSpecLike with Matchers {
     "translate Internal.Post to External.Post using user defined functions" in {
       implicit def toTimestamp(instant: Instant): Long = instant.toEpochMilli
       internalPost.transformTo[External.Post] shouldBe externalPost
+    }
+    "transform Internal.Cylinder into External.Circle" in {
+      val cylinder = Internal.Cylinder(
+        origin = Internal.Point(1.0, 2.0),
+        radius = 3.0,
+        height = 4.0,
+        color = Internal.Color.Red
+      )
+      cylinder.transformTo[External.Circle] shouldBe externalCircle
     }
   }
 
