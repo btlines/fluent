@@ -1,6 +1,6 @@
 package fluent.shapeless
 
-import cats.Functor
+import cats.{ Applicative, Functor, Monoid }
 import shapeless.{:+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, LabelledGeneric, Lazy}
 import shapeless.labelled.{FieldType, field}
 import shapeless.ops.record.Selector
@@ -29,6 +29,12 @@ trait VeryLowPriorityTransformers {
     transformTail: Transformer[A, T]
   ): Transformer[A, FieldType[K, V] :: T] = new Transformer[A, FieldType[K, V] :: T] {
     override def apply(a: A): ::[FieldType[K, V], T] = field[K](transformHead(a)) :: transformTail(a)
+  }
+
+  implicit def emptyMonoidTransformer[F[_], A, B](implicit
+    monoid: Monoid[F[B]]
+  ): Transformer[A, F[B]] = new Transformer[A, F[B]] {
+    override def apply(a: A): F[B] = monoid.empty
   }
 }
 
@@ -131,6 +137,13 @@ trait ImplicitTransformers extends LowPriorityTransformers {
     transform: Transformer[A, B]
   ): Transformer[F[A], F[B]] = new Transformer[F[A], F[B]] {
     override def apply(a: F[A]): F[B] = functor.map(a)(transform.apply)
+  }
+
+  implicit def applicativeTransformer[F[_], A, B](implicit
+    applicative: Applicative[F],
+    transform: Transformer[A, B]
+  ): Transformer[A, F[B]] = new Transformer[A, F[B]] {
+    override def apply(a: A): F[B] = applicative.pure(transform(a))
   }
 
   implicit def extractorTransformer[A, B](implicit
