@@ -127,3 +127,7 @@ With these 2 functions in scope we can now transform the `External.Post` into an
 ```scala
 val internalPost = externalPost.transformTo[Internal.Post]
 ```
+
+### More information
+
+More implementation details can be found on this blog post: http://www.beyondthelines.net/programing/fluent-a-deep-dive-into-shapeless-and-implicit-resolution/ 
