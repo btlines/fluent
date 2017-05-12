@@ -21,7 +21,7 @@ In order to use Fluent you need to add the following lines to your `build.sbt`:
 ```scala
 resolvers += Resolver.bintrayRepo("beyondthelines", "maven")
 
-libraryDependencies += "beyondthelines" %% "fluent" % "0.0.1"
+libraryDependencies += "beyondthelines" %% "fluent" % "0.0.2"
 ```
 
 ## Dependencies
