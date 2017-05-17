@@ -7,6 +7,7 @@ import org.scalatest.{ Matchers, WordSpecLike }
 object External {
   case class Circle(x: Double, y: Double, radius: Double, color: Option[String])
   case class Post(author: String, body: String, timestamp: Long)
+  case class PostWithOptionalFields(author: Option[String], body: Option[String], timestamp: Option[Long])
 }
 
 object Internal {
@@ -20,14 +21,15 @@ object Internal {
   case class Circle(center: Point, radius: Double, color: Option[Color])
   case class Cylinder(origin: Point, radius: Double, height: Double, color: Color)
 
-  case class Author(name: String)
+  case class Author(author: String)
   case class Post(author: Author, body: String, tags: List[String], timestamp: Instant)
 }
 
 class FluentSpec extends WordSpecLike with Matchers {
 
-  // Needed to support transformation on Functors (Option, List, ...)
-  import cats.instances.all._
+  // Needed to support transformation on Option and List
+  import cats.instances.option._
+  import cats.instances.list._
 
   "Fluent" should {
     val externalCircle = External.Circle(
@@ -53,8 +55,13 @@ class FluentSpec extends WordSpecLike with Matchers {
       body = "#Fluent is a cool library to implement your #DDD #translationLayer seamlessly",
       timestamp = 1491823712002L
     )
+    val externalPostWithOptionalFields = External.PostWithOptionalFields(
+      author = Some("Misty"),
+      body = Some("#Fluent is a cool library to implement your #DDD #translationLayer seamlessly"),
+      timestamp = Some(1491823712002L)
+    )
     val internalPost = Internal.Post(
-      author = Internal.Author(name = "Misty"),
+      author = Internal.Author("Misty"),
       body = "#Fluent is a cool library to implement your #DDD #translationLayer seamlessly",
       timestamp = Instant.ofEpochMilli(1491823712002L),
       tags = List("#Fluent", "#DDD", "#translationLayer")
@@ -62,6 +69,10 @@ class FluentSpec extends WordSpecLike with Matchers {
     "translate External.Post to Internal.Post without extracting tags" in {
       implicit def toInstant(timestamp: Long): Instant = Instant.ofEpochMilli(timestamp)
       externalPost.transformTo[Internal.Post] shouldBe internalPost.copy(tags = List.empty)
+    }
+    "translate External.PostWithOptionalFields to Internal.Post without extracting tags" in {
+      implicit def toInstant(timestamp: Long): Instant = Instant.ofEpochMilli(timestamp)
+      externalPostWithOptionalFields.transformTo[Internal.Post] shouldBe internalPost.copy(tags = List.empty)
     }
     "translate External.Post to Internal.Post using user defined functions" in {
       implicit def tagsExtractor(post: External.Post): List[String] =
@@ -72,6 +83,10 @@ class FluentSpec extends WordSpecLike with Matchers {
     "translate Internal.Post to External.Post using user defined functions" in {
       implicit def toTimestamp(instant: Instant): Long = instant.toEpochMilli
       internalPost.transformTo[External.Post] shouldBe externalPost
+    }
+    "translate Internal.Post to External.PostWithOptionalFields using user defined functions" in {
+      implicit def toTimestamp(instant: Instant): Long = instant.toEpochMilli
+      internalPost.transformTo[External.PostWithOptionalFields] shouldBe externalPostWithOptionalFields
     }
     "transform Internal.Cylinder into External.Circle" in {
       val cylinder = Internal.Cylinder(

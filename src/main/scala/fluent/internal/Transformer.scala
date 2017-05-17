@@ -1,15 +1,29 @@
-package fluent.shapeless
+package fluent.internal
 
 import cats.{ Applicative, Functor, Monoid }
-import shapeless.{:+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, LabelledGeneric, Lazy}
-import shapeless.labelled.{FieldType, field}
+import shapeless.labelled.{ FieldType, field }
 import shapeless.ops.record.Selector
+import shapeless.{ :+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, LabelledGeneric, Lazy }
 
 import scala.util.Try
 
 trait Transformer[A, B] { def apply(a: A): B }
 
-trait VeryLowPriorityTransformers {
+trait LowestPriorityTransformers {
+  implicit def hlistGlobalTransformer[A, K, V, T <: HList](implicit
+    transformHead: Transformer[A, V],
+    transformTail: Transformer[A, T]
+  ): Transformer[A, FieldType[K, V] :: T] = new Transformer[A, FieldType[K, V] :: T] {
+    override def apply(a: A): ::[FieldType[K, V], T] = field[K](transformHead(a)) :: transformTail(a)
+  }
+
+  implicit def emptyMonoidTransformer[F[_], A, B](implicit monoid: Monoid[F[B]]): Transformer[A, F[B]] =
+    new Transformer[A, F[B]] {
+      override def apply(a: A): F[B] = monoid.empty
+    }
+}
+
+trait LowerPriorityTransformers extends LowestPriorityTransformers {
   implicit def deepHListTransformer[A, ARepr <: HList, R <: HList, F, K, V, T <: HList](implicit
     generic: LabelledGeneric.Aux[A, ARepr],
     deepHLister: DeepHLister.Aux[ARepr, R],
@@ -23,22 +37,9 @@ trait VeryLowPriorityTransformers {
       field[K](h) :: transformTail(a)
     }
   }
-
-  implicit def hlistGlobalTransformer[A, K, V, T <: HList](implicit
-    transformHead: Transformer[A, V],
-    transformTail: Transformer[A, T]
-  ): Transformer[A, FieldType[K, V] :: T] = new Transformer[A, FieldType[K, V] :: T] {
-    override def apply(a: A): ::[FieldType[K, V], T] = field[K](transformHead(a)) :: transformTail(a)
-  }
-
-  implicit def emptyMonoidTransformer[F[_], A, B](implicit
-    monoid: Monoid[F[B]]
-  ): Transformer[A, F[B]] = new Transformer[A, F[B]] {
-    override def apply(a: A): F[B] = monoid.empty
-  }
 }
 
-trait LowPriorityTransformers extends VeryLowPriorityTransformers {
+trait LowPriorityTransformers extends LowerPriorityTransformers {
   implicit def hlistTransformer[A, ARepr <: HList, F, K, V, T <: HList](implicit
     generic: LabelledGeneric.Aux[A, ARepr],
     selector: Selector.Aux[ARepr, K, F],
@@ -68,12 +69,11 @@ trait LowPriorityTransformers extends VeryLowPriorityTransformers {
     }
   }
 
-  implicit def fromCnilTransformer[A]: Transformer[CNil, A] =
-    new Transformer[CNil, A] {
-      override def apply(cnil: CNil): A =
-        // there is no CNil instance, so this is never executed
-        throw new UnsupportedOperationException("Can't transform CNil")
-    }
+  implicit def fromCnilTransformer[A]: Transformer[CNil, A] = new Transformer[CNil, A] {
+    override def apply(cnil: CNil): A =
+      // there is no CNil instance, so this is never executed
+      throw new UnsupportedOperationException("Can't transform CNil")
+  }
 
   implicit def toSealedTransformer[A, Repr <: Coproduct, B](implicit
     generic: Generic.Aux[B, Repr],
@@ -89,12 +89,11 @@ trait LowPriorityTransformers extends VeryLowPriorityTransformers {
     override def apply(a: A): H :+: T = Try(Inl(transformHead(a))) getOrElse Inr(transformTail(a))
   }
 
-  implicit def toCnilTransformer[A]: Transformer[A, CNil] =
-    new Transformer[A, CNil] {
-      override def apply(a: A): CNil =
-        // There is no instance of CNil, so this won't be used
-        throw new UnsupportedOperationException("Can't transform into CNil")
-    }
+  implicit def toCnilTransformer[A]: Transformer[A, CNil] = new Transformer[A, CNil] {
+    override def apply(a: A): CNil =
+      // There is no instance of CNil, so this won't be used
+      throw new UnsupportedOperationException("Can't transform into CNil")
+  }
 }
 
 trait ImplicitTransformers extends LowPriorityTransformers {
@@ -176,4 +175,12 @@ trait ImplicitTransformers extends LowPriorityTransformers {
   }
 }
 
-object Transformer extends ImplicitTransformers
+trait HighPriorityTransformers extends ImplicitTransformers {
+  implicit def optionExtractorTransformer[A, B](implicit
+    transform: Transformer[A, B]
+  ): Transformer[Option[A], B] = new Transformer[Option[A], B] {
+    override def apply(a: Option[A]): B = transform(a.get)
+  }
+}
+
+object Transformer extends HighPriorityTransformers
