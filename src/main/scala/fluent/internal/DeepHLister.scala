@@ -1,4 +1,4 @@
-package fluent.shapeless
+package fluent.internal
 
 import shapeless.labelled.FieldType
 import shapeless.ops.hlist.Prepend

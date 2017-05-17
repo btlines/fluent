@@ -1,4 +1,4 @@
-import fluent.shapeless.Transformer
+import fluent.internal.Transformer
 
 package object fluent {
   implicit class TransformerOps[A](a: A) {
