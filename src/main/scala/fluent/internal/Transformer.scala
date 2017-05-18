@@ -9,7 +9,7 @@ import scala.util.Try
 
 trait Transformer[A, B] { def apply(a: A): B }
 
-trait LowestPriorityTransformers {
+trait ImplicitTransformersPriority1 {
   implicit def hlistGlobalTransformer[A, K, V, T <: HList](implicit
     transformHead: Transformer[A, V],
     transformTail: Transformer[A, T]
@@ -23,7 +23,7 @@ trait LowestPriorityTransformers {
     }
 }
 
-trait LowerPriorityTransformers extends LowestPriorityTransformers {
+trait ImplicitTransformersPriority2 extends ImplicitTransformersPriority1 {
   implicit def deepHListTransformer[A, ARepr <: HList, R <: HList, F, K, V, T <: HList](implicit
     generic: LabelledGeneric.Aux[A, ARepr],
     deepHLister: DeepHLister.Aux[ARepr, R],
@@ -39,7 +39,7 @@ trait LowerPriorityTransformers extends LowestPriorityTransformers {
   }
 }
 
-trait LowPriorityTransformers extends LowerPriorityTransformers {
+trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
   implicit def hlistTransformer[A, ARepr <: HList, F, K, V, T <: HList](implicit
     generic: LabelledGeneric.Aux[A, ARepr],
     selector: Selector.Aux[ARepr, K, F],
@@ -96,11 +96,10 @@ trait LowPriorityTransformers extends LowerPriorityTransformers {
   }
 }
 
-trait ImplicitTransformers extends LowPriorityTransformers {
+trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
   implicit def customTransformer[A, B](implicit f: A => B): Transformer[A, B] = new Transformer[A, B] {
     override def apply(a: A): B = f(a)
   }
-
   implicit def hlistCustomTransformer[A, K, V, T <: HList](implicit
     f: A => V,
     transformTail: Transformer[A, T]
@@ -145,12 +144,6 @@ trait ImplicitTransformers extends LowPriorityTransformers {
     override def apply(a: A): F[B] = applicative.pure(transform(a))
   }
 
-  implicit def extractorTransformer[A, B](implicit
-    generic: Generic.Aux[A, B :: HNil]
-  ): Transformer[A, B] = new Transformer[A, B] {
-    override def apply(a: A): B = generic.to(a).head
-  }
-
   implicit def emptyToStringTransformer[A](implicit
     generic: Generic.Aux[A, HNil]
   ): Transformer[A, String] = new Transformer[A, String] {
@@ -175,12 +168,18 @@ trait ImplicitTransformers extends LowPriorityTransformers {
   }
 }
 
-trait HighPriorityTransformers extends ImplicitTransformers {
+trait ImplicitTransformersPriority5 extends ImplicitTransformersPriority4 {
   implicit def optionExtractorTransformer[A, B](implicit
     transform: Transformer[A, B]
   ): Transformer[Option[A], B] = new Transformer[Option[A], B] {
     override def apply(a: Option[A]): B = transform(a.get)
   }
+
+  implicit def extractorTransformer[A, B](implicit
+    generic: Generic.Aux[A, B :: HNil]
+  ): Transformer[A, B] = new Transformer[A, B] {
+    override def apply(a: A): B = generic.to(a).head
+  }
 }
 
-object Transformer extends HighPriorityTransformers
+object Transformer extends ImplicitTransformersPriority5
