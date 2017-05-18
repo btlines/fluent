@@ -23,6 +23,7 @@ object Internal {
 
   case class Author(author: String)
   case class Post(author: Author, body: String, tags: List[String], timestamp: Instant)
+  case class Published(post: Post)
 }
 
 class FluentSpec extends WordSpecLike with Matchers {
@@ -66,27 +67,31 @@ class FluentSpec extends WordSpecLike with Matchers {
       timestamp = Instant.ofEpochMilli(1491823712002L),
       tags = List("#Fluent", "#DDD", "#translationLayer")
     )
-    "translate External.Post to Internal.Post without extracting tags" in {
+    "transform External.Post to Internal.Post without extracting tags" in {
       implicit def toInstant(timestamp: Long): Instant = Instant.ofEpochMilli(timestamp)
       externalPost.transformTo[Internal.Post] shouldBe internalPost.copy(tags = List.empty)
     }
-    "translate External.PostWithOptionalFields to Internal.Post without extracting tags" in {
+    "transform External.PostWithOptionalFields to Internal.Post without extracting tags" in {
       implicit def toInstant(timestamp: Long): Instant = Instant.ofEpochMilli(timestamp)
       externalPostWithOptionalFields.transformTo[Internal.Post] shouldBe internalPost.copy(tags = List.empty)
     }
-    "translate External.Post to Internal.Post using user defined functions" in {
+    "transform External.Post to Internal.Post using user defined functions" in {
       implicit def tagsExtractor(post: External.Post): List[String] =
         post.body.split("\\s").toList.filter(_.startsWith("#"))
       implicit def toInstant(timestamp: Long): Instant = Instant.ofEpochMilli(timestamp)
       externalPost.transformTo[Internal.Post] shouldBe internalPost
     }
-    "translate Internal.Post to External.Post using user defined functions" in {
+    "transform Internal.Post to External.Post using user defined functions" in {
       implicit def toTimestamp(instant: Instant): Long = instant.toEpochMilli
       internalPost.transformTo[External.Post] shouldBe externalPost
     }
-    "translate Internal.Post to External.PostWithOptionalFields using user defined functions" in {
+    "transform Internal.Post to External.PostWithOptionalFields using user defined functions" in {
       implicit def toTimestamp(instant: Instant): Long = instant.toEpochMilli
       internalPost.transformTo[External.PostWithOptionalFields] shouldBe externalPostWithOptionalFields
+    }
+    "transform Internal.Published event to External.PostWithOptionalFields" in {
+      implicit def toTimestamp(instant: Instant): Long = instant.toEpochMilli
+      Internal.Published(internalPost).transformTo[External.PostWithOptionalFields] shouldBe externalPostWithOptionalFields
     }
     "transform Internal.Cylinder into External.Circle" in {
       val cylinder = Internal.Cylinder(
