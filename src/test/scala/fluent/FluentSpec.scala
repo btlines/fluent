@@ -44,11 +44,11 @@ class FluentSpec extends WordSpecLike with Matchers {
       radius = 3.0,
       color = Some(Internal.Color.Red)
     )
-    "translate External.Circle into Internal.Circle" in {
-      externalCircle.transformTo[Internal.Circle] shouldBe internalCircle
+    "translate External.Circle transformTo Internal.Circle" in {
+      externalCircle.changeTo[Internal.Circle] shouldBe Right(internalCircle)
     }
-    "translate Internal.Circle into External.Circle" in {
-      internalCircle.transformTo[External.Circle] shouldBe externalCircle
+    "translate Internal.Circle transformTo External.Circle" in {
+      internalCircle.changeTo[External.Circle] shouldBe Right(externalCircle)
     }
 
     val externalPost = External.Post(
@@ -69,11 +69,11 @@ class FluentSpec extends WordSpecLike with Matchers {
     )
     "transform External.Post to Internal.Post without extracting tags" in {
       implicit def toInstant(timestamp: Long): Instant = Instant.ofEpochMilli(timestamp)
-      externalPost.transformTo[Internal.Post] shouldBe internalPost.copy(tags = List.empty)
+      externalPost.transformTo[Internal.Post] shouldBe internalPost.copy(tags = Nil)
     }
     "transform External.PostWithOptionalFields to Internal.Post without extracting tags" in {
       implicit def toInstant(timestamp: Long): Instant = Instant.ofEpochMilli(timestamp)
-      externalPostWithOptionalFields.transformTo[Internal.Post] shouldBe internalPost.copy(tags = List.empty)
+      externalPostWithOptionalFields.transformTo[Internal.Post] shouldBe internalPost.copy(tags = Nil)
     }
     "transform External.Post to Internal.Post using user defined functions" in {
       implicit def tagsExtractor(post: External.Post): List[String] =
@@ -93,7 +93,7 @@ class FluentSpec extends WordSpecLike with Matchers {
       implicit def toTimestamp(instant: Instant): Long = instant.toEpochMilli
       Internal.Published(internalPost).transformTo[External.PostWithOptionalFields] shouldBe externalPostWithOptionalFields
     }
-    "transform Internal.Cylinder into External.Circle" in {
+    "transform Internal.Cylinder transformTo External.Circle" in {
       val cylinder = Internal.Cylinder(
         origin = Internal.Point(1.0, 2.0),
         radius = 3.0,
@@ -101,6 +101,17 @@ class FluentSpec extends WordSpecLike with Matchers {
         color = Internal.Color.Red
       )
       cylinder.transformTo[External.Circle] shouldBe externalCircle
+    }
+    "failed to transform when missing required field" in {
+      case class Optional(value: Option[String])
+      case class Required(value: String)
+      Optional(None).changeTo[Required] shouldBe Left(TransformError("Missing required field"))
+      an [IllegalArgumentException] should be thrownBy Optional(None).transformTo[Required]
+    }
+    "failed to transform string into case object if name doesn't match" in {
+      case object SomethingElse
+      "Something".changeTo[SomethingElse.type] shouldBe Left(TransformError("Can't transform 'Something' into SomethingElse"))
+      an [IllegalArgumentException] should be thrownBy "Something".transformTo[SomethingElse.type]
     }
   }
 
