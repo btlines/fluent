@@ -1,12 +1,12 @@
 package fluent.internal
 
-import cats.{Applicative, Monoid, Traverse}
+import cats.{ Applicative, Monoid, Traverse}
 import fluent.TransformError
 import shapeless.labelled.{FieldType, field}
 import shapeless.ops.record.Selector
 import shapeless.{:+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, LabelledGeneric, Lazy}
-
-import scala.util.Try
+import cats.syntax.either._
+import scala.util.{Failure, Success, Try}
 
 trait Transformer[A, B] { def apply(a: A): Either[TransformError, B] }
 
@@ -107,16 +107,22 @@ trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
 }
 
 trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
+  def fromTry[A](t: Try[A]): Either[Throwable, A] =
+    t match {
+      case Failure(e) => Either.left(e)
+      case Success(v) => Either.right(v)
+    }
+
   implicit def customTransformer[A, B](implicit f: A => B): Transformer[A, B] =
     instance { a: A =>
-      Try(f(a)).toEither.left.map(TransformError.apply)
+      fromTry(Try(f(a))).left.map(TransformError.apply)
     }
   implicit def hlistCustomTransformer[A, K, V, T <: HList](implicit
     f: A => V,
     transformTail: Transformer[A, T]
   ): Transformer[A, FieldType[K, V] :: T] = instance { a: A =>
     for {
-      h <- Try(f(a)).toEither.left.map(TransformError.apply)
+      h <- fromTry(Try(f(a))).left.map(TransformError.apply)
       t <- transformTail(a)
     } yield field[K](h) :: t
   }
