@@ -91,7 +91,8 @@ class FluentSpec extends WordSpecLike with Matchers {
     }
     "transform Internal.Published event to External.PostWithOptionalFields" in {
       implicit def toTimestamp(instant: Instant): Long = instant.toEpochMilli
-      Internal.Published(internalPost).transformTo[External.PostWithOptionalFields] shouldBe externalPostWithOptionalFields
+      Internal.Published(internalPost)
+        .transformTo[External.PostWithOptionalFields] shouldBe externalPostWithOptionalFields
     }
     "transform Internal.Cylinder transformTo External.Circle" in {
       val cylinder = Internal.Cylinder(
@@ -110,8 +111,19 @@ class FluentSpec extends WordSpecLike with Matchers {
     }
     "failed to transform string into case object if name doesn't match" in {
       case object SomethingElse
-      "Something".changeTo[SomethingElse.type] shouldBe Left(TransformError("Can't transform 'Something' into SomethingElse"))
-      an [IllegalArgumentException] should be thrownBy "Something".transformTo[SomethingElse.type]
+      "Something".changeTo[SomethingElse.type] shouldBe Left(
+        TransformError("Can't transform 'Something' into SomethingElse")
+      )
+      an[IllegalArgumentException] should be thrownBy "Something".transformTo[SomethingElse.type]
+    }
+    "override a field specified with using" in {
+      externalCircle.using(radius = 42.0).transformTo[Internal.Circle] shouldBe internalCircle.copy(radius = 42.0)
+      internalCircle.using(radius = 42.0).transformTo[External.Circle] shouldBe externalCircle.copy(radius = 42.0)
+    }
+    "build a value by specifying all the fields" in {
+      case class Empty()
+      Empty().using(x = 1.0, y = 2.0, radius = 3.0, color = "Red").transformTo[Internal.Circle] shouldBe internalCircle
+      Empty().using(x = 1.0, y = 2.0, radius = 3.0, color = "Red").transformTo[External.Circle] shouldBe externalCircle
     }
   }
 

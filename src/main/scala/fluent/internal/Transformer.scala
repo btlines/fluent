@@ -33,7 +33,7 @@ trait ImplicitTransformersPriority1 {
 }
 
 trait ImplicitTransformersPriority2 extends ImplicitTransformersPriority1 {
-  implicit def deepHListTransformer[A, ARepr <: HList, R <: HList, F, K, V, T <: HList](implicit
+  implicit def deepHListWithGenericTransformer[A, ARepr <: HList, R <: HList, F, K, V, T <: HList](implicit
     generic: LabelledGeneric.Aux[A, ARepr],
     deepHLister: DeepHLister.Aux[ARepr, R],
     selector: Selector.Aux[R, K, F],
@@ -46,10 +46,23 @@ trait ImplicitTransformersPriority2 extends ImplicitTransformersPriority1 {
       t <- transformTail(a)
     } yield field[K](h) :: t
   }
+
+  implicit def deepHListTransformer[ARepr <: HList, R <: HList, F, K, V, T <: HList](implicit
+    deepHLister: DeepHLister.Aux[ARepr, R],
+    selector: Selector.Aux[R, K, F],
+    transformHead: Transformer[F, V],
+    transformTail: Transformer[ARepr, T]
+  ): Transformer[ARepr, FieldType[K, V] :: T] = instance { a: ARepr =>
+    val r = deepHLister(a)
+    for {
+      h <- transformHead(selector(r))
+      t <- transformTail(a)
+    } yield field[K](h) :: t
+  }
 }
 
 trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
-  implicit def hlistTransformer[A, ARepr <: HList, F, K, V, T <: HList](implicit
+  implicit def hlistWithGenericTransformer[A, ARepr <: HList, F, K, V, T <: HList](implicit
     generic: LabelledGeneric.Aux[A, ARepr],
     selector: Selector.Aux[ARepr, K, F],
     transformHead: Transformer[F, V],
@@ -57,6 +70,17 @@ trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
   ): Transformer[A, FieldType[K, V] :: T] = instance { a: A =>
     for {
       h <- transformHead(selector(generic.to(a)))
+      t <- transformTail(a)
+    } yield field[K](h) :: t
+  }
+
+  implicit def hlistTransformer[ARepr <: HList, F, K, V, T <: HList](implicit
+    selector: Selector.Aux[ARepr, K, F],
+    transformHead: Transformer[F, V],
+    transformTail: Transformer[ARepr, T]
+  ): Transformer[ARepr, FieldType[K, V] :: T] = instance { a: ARepr =>
+    for {
+      h <- transformHead(selector(a))
       t <- transformTail(a)
     } yield field[K](h) :: t
   }
@@ -71,7 +95,7 @@ trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
   implicit def fromCoprodTransformer[H, T <: Coproduct, B](implicit
     transformHead: Transformer[H, B],
     transformTail: Transformer[T, B]
-  ): Transformer[H :+: T, B] = instance { a: H :+: T =>
+  ): Transformer[H :+: T, B] = instance { (a: H :+: T) =>
     a match {
       case Inl(h) => transformHead(h)
       case Inr(t) => transformTail(t)
@@ -155,7 +179,7 @@ trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
     traverse: Traverse[M],
     applicative: Applicative[({type λ[X] = Either[TransformError, X]})#λ]
   ): Transformer[M[A], M[B]] = instance { a: M[A] =>
-    applicative.traverse(a)(x => transform(x))
+    applicative.traverse(a)(transform.apply)
   }
 
   implicit def applicativeTransformer[F[_], A, B](implicit
