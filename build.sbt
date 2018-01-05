@@ -1,6 +1,6 @@
 name := "fluent"
 
-version := "0.0.6"
+version := "0.0.7"
 
 scalaVersion := "2.12.4"
 crossScalaVersions := Seq("2.11.12", "2.12.4")
