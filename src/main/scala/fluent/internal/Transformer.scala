@@ -109,6 +109,12 @@ trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
     // There is no instance of CNil, so this won't be used
     Left(TransformError("Can't transform into CNil"))
   }
+
+  implicit def optionExtractorTransformer[A, B](implicit
+    transform: Transformer[A, B]
+  ): Transformer[Option[A], B] = instance { a: Option[A] =>
+    a.map(transform.apply) getOrElse Left(TransformError("Missing required field"))
+  }
 }
 
 trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
@@ -192,12 +198,6 @@ trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
 }
 
 trait ImplicitTransformersPriority5 extends ImplicitTransformersPriority4 {
-  implicit def optionExtractorTransformer[A, B](implicit
-    transform: Transformer[A, B]
-  ): Transformer[Option[A], B] = instance { a: Option[A] =>
-    a.map(transform.apply) getOrElse Left(TransformError("Missing required field"))
-  }
-
   implicit def extractorTransformer[A, B](implicit
     generic: Generic.Aux[A, B :: HNil]
   ): Transformer[A, B] = instance { a: A =>

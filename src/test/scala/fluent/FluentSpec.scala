@@ -44,13 +44,18 @@ class FluentSpec extends WordSpecLike with Matchers {
       radius = 3.0,
       color = Some(Internal.Color.Red)
     )
-    "translate External.Circle transformTo Internal.Circle" in {
+    "tranform External.Circle into Internal.Circle" in {
       externalCircle.changeTo[Internal.Circle] shouldBe Right(internalCircle)
     }
-    "translate Internal.Circle transformTo External.Circle" in {
+    "transform Internal.Circle into External.Circle" in {
       internalCircle.changeTo[External.Circle] shouldBe Right(externalCircle)
     }
-
+    "transform Option[Internal.Circle] into Option[External.Circle]" in {
+      import cats.instances.either._
+      import cats.instances.option._
+      Option(internalCircle).changeTo[Option[External.Circle]] shouldBe Right(Some(externalCircle))
+      (None: Option[Internal.Circle]).changeTo[Option[External.Circle]] shouldBe Right(None)
+    }
     val externalPost = External.Post(
       author = "Misty",
       body = "#Fluent is a cool library to implement your #DDD #translationLayer seamlessly",
