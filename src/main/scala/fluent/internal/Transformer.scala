@@ -1,16 +1,21 @@
 package fluent.internal
 
-import cats.{ Applicative, Monoid, Traverse}
+import cats.{ Applicative, Monoid, Traverse }
 import fluent.TransformError
 import shapeless.labelled.{FieldType, field}
 import shapeless.ops.record.Selector
-import shapeless.{:+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, LabelledGeneric, Lazy}
+import shapeless.{ :+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, LabelledGeneric, Lazy }
 import cats.syntax.either._
+
 import scala.util.{Failure, Success, Try}
 
-trait Transformer[A, B] { def apply(a: A): Either[TransformError, B] }
+trait Transformer[A, B] {
+  def apply(a: A): Either[TransformError, B]
+}
 
 trait ImplicitTransformersPriority1 {
+  type TransformResult[T] = Either[TransformError, T]
+
   def instance[A, B](f: A => Either[TransformError, B]): Transformer[A, B] =
     new Transformer[A, B] {
       override def apply(a: A): Either[TransformError, B] = f(a)
@@ -71,7 +76,7 @@ trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
   implicit def fromCoprodTransformer[H, T <: Coproduct, B](implicit
     transformHead: Transformer[H, B],
     transformTail: Transformer[T, B]
-  ): Transformer[H :+: T, B] = instance { a: H :+: T =>
+  ): Transformer[H :+: T, B] = instance { (a: H :+: T) =>
     a match {
       case Inl(h) => transformHead(h)
       case Inr(t) => transformTail(t)
@@ -143,7 +148,7 @@ trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
   }
 
   implicit def hnilTransformer[A]: Transformer[A, HNil] = instance {
-    _: A =>Right(HNil)
+    _: A => Right(HNil)
   }
 
   implicit def identityTransformer[A]: Transformer[A, A] = instance {
@@ -153,9 +158,9 @@ trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
   implicit def functorTransformer[M[_], A, B](implicit
     transform: Transformer[A, B],
     traverse: Traverse[M],
-    applicative: Applicative[({type λ[X] = Either[TransformError, X]})#λ]
+    applicative: Applicative[TransformResult]
   ): Transformer[M[A], M[B]] = instance { a: M[A] =>
-    applicative.traverse(a)(x => transform(x))
+    traverse.traverse[TransformResult, A, B](a)(transform.apply)
   }
 
   implicit def applicativeTransformer[F[_], A, B](implicit
