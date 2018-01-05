@@ -2,8 +2,8 @@ name := "fluent"
 
 version := "0.0.6"
 
-scalaVersion := "2.12.2"
-crossScalaVersions := Seq("2.11.7", "2.12.2")
+scalaVersion := "2.12.4"
+crossScalaVersions := Seq("2.11.12", "2.12.4")
 
 libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-core" % "1.0.1",
