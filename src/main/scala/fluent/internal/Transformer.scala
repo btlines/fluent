@@ -1,16 +1,21 @@
 package fluent.internal
 
-import cats.{ Applicative, Monoid, Traverse}
+import cats.{ Applicative, Monoid, Traverse }
 import fluent.TransformError
 import shapeless.labelled.{FieldType, field}
 import shapeless.ops.record.Selector
-import shapeless.{:+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, LabelledGeneric, Lazy}
+import shapeless.{ :+:, ::, CNil, Coproduct, Generic, HList, HNil, Inl, Inr, LabelledGeneric, Lazy }
 import cats.syntax.either._
+
 import scala.util.{Failure, Success, Try}
 
-trait Transformer[A, B] { def apply(a: A): Either[TransformError, B] }
+trait Transformer[A, B] {
+  def apply(a: A): Either[TransformError, B]
+}
 
 trait ImplicitTransformersPriority1 {
+  type TransformResult[T] = Either[TransformError, T]
+
   def instance[A, B](f: A => Either[TransformError, B]): Transformer[A, B] =
     new Transformer[A, B] {
       override def apply(a: A): Either[TransformError, B] = f(a)
@@ -71,7 +76,7 @@ trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
   implicit def fromCoprodTransformer[H, T <: Coproduct, B](implicit
     transformHead: Transformer[H, B],
     transformTail: Transformer[T, B]
-  ): Transformer[H :+: T, B] = instance { a: H :+: T =>
+  ): Transformer[H :+: T, B] = instance { (a: H :+: T) =>
     a match {
       case Inl(h) => transformHead(h)
       case Inr(t) => transformTail(t)
@@ -103,6 +108,12 @@ trait ImplicitTransformersPriority3 extends ImplicitTransformersPriority2 {
   implicit def toCnilTransformer[A]: Transformer[A, CNil] = instance { a: A =>
     // There is no instance of CNil, so this won't be used
     Left(TransformError("Can't transform into CNil"))
+  }
+
+  implicit def optionExtractorTransformer[A, B](implicit
+    transform: Transformer[A, B]
+  ): Transformer[Option[A], B] = instance { a: Option[A] =>
+    a.map(transform.apply) getOrElse Left(TransformError("Missing required field"))
   }
 }
 
@@ -143,7 +154,7 @@ trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
   }
 
   implicit def hnilTransformer[A]: Transformer[A, HNil] = instance {
-    _: A =>Right(HNil)
+    _: A => Right(HNil)
   }
 
   implicit def identityTransformer[A]: Transformer[A, A] = instance {
@@ -153,9 +164,9 @@ trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
   implicit def functorTransformer[M[_], A, B](implicit
     transform: Transformer[A, B],
     traverse: Traverse[M],
-    applicative: Applicative[({type λ[X] = Either[TransformError, X]})#λ]
+    applicative: Applicative[TransformResult]
   ): Transformer[M[A], M[B]] = instance { a: M[A] =>
-    applicative.traverse(a)(x => transform(x))
+    traverse.traverse[TransformResult, A, B](a)(transform.apply)
   }
 
   implicit def applicativeTransformer[F[_], A, B](implicit
@@ -187,12 +198,6 @@ trait ImplicitTransformersPriority4 extends ImplicitTransformersPriority3 {
 }
 
 trait ImplicitTransformersPriority5 extends ImplicitTransformersPriority4 {
-  implicit def optionExtractorTransformer[A, B](implicit
-    transform: Transformer[A, B]
-  ): Transformer[Option[A], B] = instance { a: Option[A] =>
-    a.map(transform.apply) getOrElse Left(TransformError("Missing required field"))
-  }
-
   implicit def extractorTransformer[A, B](implicit
     generic: Generic.Aux[A, B :: HNil]
   ): Transformer[A, B] = instance { a: A =>
