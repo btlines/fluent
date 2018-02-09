@@ -85,7 +85,7 @@ In this case it's easy to figure out what Fluent does:
 
 ### Using user defined functions
 
-Sometimes Fluent can figure out how to convert from one case class to the other. In such cases it's possible to define implicit functions that Fluent can use to achieve the conversion.
+Sometimes Fluent cannot figure out how to convert from one case class to the other. In such cases it's possible to define implicit functions that Fluent can use to achieve the conversion.
 
 Let's take another example:
 
